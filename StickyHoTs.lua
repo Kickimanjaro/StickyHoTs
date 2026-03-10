@@ -21,7 +21,7 @@ SH.BATTLE_SPIRIT_ID = 999014
 
 -- State
 SH.hotCount = 0
-SH.battleSpiritActive = false
+SH.inPvPZone = false
 SH.controls = {}
 SH.savedVars = nil
 SH.initialized = false
@@ -107,25 +107,34 @@ function SH.RefreshCount()
 end
 
 -- ============================================================================
--- Battle Spirit Detection
+-- PvP Zone Detection
 -- ============================================================================
 
 --[[
-    Check whether Battle Spirit is currently active on the player.
-    Battle Spirit is a hidden passive buff (ID 999014) applied in PvP zones.
-    It doesn't appear in GetNumBuffs/GetUnitBuffInfo, so we track it via
-    EVENT_EFFECT_CHANGED only.
+    Check if the player is currently in a PvP zone where Battle Spirit applies.
+    Uses the same reliable ESO API functions as Beltalowda's PvPDetection:
+      IsPlayerInAvAWorld()        — on an AvA campaign server
+      IsInCyrodiil()              — Cyrodiil overland, delves
+      IsInImperialCity()          — IC districts and sewers
+      IsActiveWorldBattleground() — Battleground instances
+
+    @return boolean
 ]]--
+function SH.IsInPvPZone()
+    return IsPlayerInAvAWorld() == true
+        or IsInCyrodiil() == true
+        or IsInImperialCity() == true
+        or IsActiveWorldBattleground() == true
+end
 
 --[[
-    Update visibility based on Battle Spirit state.
-    Shows the window when Battle Spirit is active and HUD is visible;
-    hides it otherwise.
+    Update visibility based on PvP zone state.
+    Shows the window when in a PvP zone and HUD is visible; hides otherwise.
 ]]--
-function SH.UpdateBattleSpiritVisibility()
+function SH.UpdatePvPVisibility()
     if not SH.controls.window then return end
 
-    if SH.battleSpiritActive then
+    if SH.inPvPZone then
         -- Show if HUD is active
         local hudScene = SCENE_MANAGER:GetScene("hud")
         local hudUiScene = SCENE_MANAGER:GetScene("hudui")
@@ -217,8 +226,8 @@ end
 function SH.OnSceneStateChange(oldState, newState)
     if not SH.controls.window then return end
 
-    -- Only show when both Battle Spirit is active and HUD is visible
-    if newState == SCENE_SHOWN and SH.battleSpiritActive then
+    -- Only show when in a PvP zone and HUD is visible
+    if newState == SCENE_SHOWN and SH.inPvPZone then
         SH.controls.window:SetHidden(false)
     elseif newState == SCENE_HIDDEN then
         SH.controls.window:SetHidden(true)
@@ -250,19 +259,6 @@ function SH.OnEffectChanged(eventCode, changeType, effectSlot, effectName,
         unitTag, beginTime, endTime, stackCount, iconName, deprecatedBuffType,
         effectType, abilityType, statusEffectType, unitName, unitId, abilityId,
         sourceType)
-    -- Track Battle Spirit gained/lost to control visibility
-    if abilityId == SH.BATTLE_SPIRIT_ID then
-        if changeType == EFFECT_RESULT_GAINED or changeType == EFFECT_RESULT_UPDATED then
-            SH.battleSpiritActive = true
-            SH.UpdateBattleSpiritVisibility()
-            SH.RefreshCount()
-        elseif changeType == EFFECT_RESULT_FADED then
-            SH.battleSpiritActive = false
-            SH.UpdateBattleSpiritVisibility()
-        end
-        return
-    end
-
     -- Only care about buff changes that could affect HoT count
     if changeType == EFFECT_RESULT_GAINED
        or changeType == EFFECT_RESULT_FADED
@@ -277,18 +273,10 @@ end
     so we must rescan immediately.
 ]]--
 function SH.OnPlayerActivated()
-    -- Battle Spirit is a hidden buff that won't appear in GetNumBuffs/GetUnitBuffInfo.
-    -- It fires via EVENT_EFFECT_CHANGED on zone entry, which may arrive before or after
-    -- EVENT_PLAYER_ACTIVATED. We rely on the effect handler to set battleSpiritActive.
-    -- On zone transitions out of PvP, EVENT_EFFECT_CHANGED FADED should fire, but as a
-    -- safety net we also clear battleSpiritActive here and let the effect handler re-set it.
-    SH.battleSpiritActive = false
-
-    -- Delay visibility update to give EVENT_EFFECT_CHANGED time to fire for Battle Spirit
-    zo_callLater(function()
-        SH.RefreshCount()
-        SH.UpdateBattleSpiritVisibility()
-    end, 500)
+    -- Detect PvP zone using reliable API functions (works immediately, no event timing issues)
+    SH.inPvPZone = SH.IsInPvPZone()
+    SH.RefreshCount()
+    SH.UpdatePvPVisibility()
 end
 
 -- ============================================================================
