@@ -214,6 +214,23 @@ function SH.UpdateGroupDisplay()
 end
 
 --[[
+    Update the header text with Battle Spirit icon.
+    The addon only displays in PvP zones where Battle Spirit is always active,
+    so we can rely on GetArtificialEffectInfo() returning its icon.
+]]--
+function SH.UpdateHeaderText()
+    if not SH.controls.headerLabel then return end
+    for effectId in ZO_GetNextActiveArtificialEffectIdIter do
+        local displayName, icon = GetArtificialEffectInfo(effectId)
+        if zo_strformat(SI_ABILITY_TOOLTIP_NAME, displayName) == "Battle Spirit" then
+            SH.controls.headerLabel:SetText(zo_iconFormat(icon, 24, 24) .. " HoTs")
+            return
+        end
+    end
+    SH.controls.headerLabel:SetText("HoTs")
+end
+
+--[[
     Resize the window to match the current display mode.
 ]]--
 function SH.ResizeForMode()
@@ -341,10 +358,7 @@ function SH.CreateUI()
     local headerLabel = wm:CreateControl("$(parent)Header", tlw, CT_LABEL)
     headerLabel:SetFont("ZoFontGameLarge")
     headerLabel:SetColor(1, 1, 1, 1)
-    -- Use inline icon markup: |t<h>:<w>:<path>|t
-    -- GetAbilityIcon works for icon lookup even though GetAbilityDescription doesn't for artificial effects
-    local battleSpiritIcon = GetAbilityIcon(999014)
-    headerLabel:SetText(zo_iconFormat(battleSpiritIcon, 24, 24) .. " HoTs")
+    headerLabel:SetText("HoTs")
     headerLabel:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
     headerLabel:SetAnchor(TOPLEFT, tlw, TOPLEFT, 0, 2)
     headerLabel:SetAnchor(TOPRIGHT, tlw, TOPRIGHT, 0, 2)
@@ -359,25 +373,16 @@ function SH.CreateUI()
         SH.SaveWindowPosition()
     end)
     headerLabel:SetHandler("OnMouseEnter", function(control)
-        -- Battle Spirit is an artificial effect, not a regular ability.
-        -- Find it among active artificial effects by matching the formatted name.
-        -- We use zo_strformat to strip grammar markers from the displayName,
-        -- matching how the character sheet formats artificial effect names.
+        -- Show Battle Spirit tooltip. Since the addon only displays in PvP zones,
+        -- Battle Spirit is always active when this handler fires.
         InitializeTooltip(InformationTooltip, control, BOTTOM, 0, -5, TOP)
-        local found = false
         for effectId in ZO_GetNextActiveArtificialEffectIdIter do
             local displayName = GetArtificialEffectInfo(effectId)
-            local formattedName = zo_strformat(SI_ABILITY_TOOLTIP_NAME, displayName)
-            if formattedName == "Battle Spirit" then
-                InformationTooltip:AddLine(formattedName, "", ZO_SELECTED_TEXT:UnpackRGBA())
+            if zo_strformat(SI_ABILITY_TOOLTIP_NAME, displayName) == "Battle Spirit" then
+                InformationTooltip:AddLine(displayName, "", ZO_SELECTED_TEXT:UnpackRGBA())
                 InformationTooltip:AddLine(GetArtificialEffectTooltipText(effectId), "", ZO_NORMAL_TEXT:UnpackRGBA())
-                found = true
                 break
             end
-        end
-        if not found then
-            InformationTooltip:AddLine("Battle Spirit", "", ZO_SELECTED_TEXT:UnpackRGBA())
-            InformationTooltip:AddLine("Battle Spirit is not currently active.", "", ZO_NORMAL_TEXT:UnpackRGBA())
         end
     end)
     headerLabel:SetHandler("OnMouseExit", function()
@@ -504,6 +509,7 @@ end
 function SH.OnPlayerActivated()
     -- Detect PvP zone using reliable API functions (works immediately, no event timing issues)
     SH.inPvPZone = SH.IsInPvPZone()
+    SH.UpdateHeaderText()
     SH.RefreshCount()
     SH.UpdatePvPVisibility()
 end
