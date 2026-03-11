@@ -20,7 +20,7 @@ SH.UPDATE_INTERVAL_MS = 1000
 
 -- State
 SH.inPvPZone = false
-SH.groupMode = false
+SH.groupMode = true
 SH.controls = {}
 SH.savedVars = nil
 SH.useCharacterName = false
@@ -515,7 +515,7 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Initialize SavedVariables (account-wide)
     local defaults = {
         position = nil, -- { x = number, y = number }
-        groupMode = false,
+        groupMode = true,
         useCharacterName = false,
         showBackground = true,
     }
