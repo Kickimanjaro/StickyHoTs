@@ -172,7 +172,7 @@ function SH.UpdateGroupDisplay()
     local nameText = ""
     local countText = ""
 
-    for _, entry in ipairs(sorted) do
+    for i, entry in ipairs(sorted) do
         local color
         if entry.count >= 8 then
             color = "|cFF3333"
@@ -183,11 +183,18 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66"
         end
-        nameText = nameText .. color .. entry.name .. "\n"
-        countText = countText .. color .. entry.count .. "\n"
+        if i > 1 then
+            nameText = nameText .. "\n"
+            countText = countText .. "\n"
+        end
+        nameText = nameText .. color .. entry.name
+        countText = countText .. color .. entry.count
     end
     nameText = nameText .. "|r"
     countText = countText .. "|r"
+
+    -- Expand window before setting text so labels have room for all lines
+    SH.controls.window:SetHeight(800)
 
     label:SetText(nameText)
     label:SetColor(1, 1, 1, 1)
