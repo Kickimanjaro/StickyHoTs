@@ -337,16 +337,27 @@ function SH.CreateUI()
     -- Apply saved background visibility
     bg:SetHidden(not SH.showBackground)
 
-    -- Header label (group mode: centered "StickyHoTs" title)
+    -- Header label (group mode: Battle Spirit icon + "HoTs" title)
     local headerLabel = wm:CreateControl("$(parent)Header", tlw, CT_LABEL)
     headerLabel:SetFont("ZoFontGameLarge")
     headerLabel:SetColor(1, 1, 1, 1)
-    headerLabel:SetText("StickyHoTs")
+    -- Use inline icon markup: |t<h>:<w>:<path>|t
+    -- GetAbilityIcon works for icon lookup even though GetAbilityDescription doesn't for artificial effects
+    local battleSpiritIcon = GetAbilityIcon(999014)
+    headerLabel:SetText(zo_iconFormat(battleSpiritIcon, 24, 24) .. " HoTs")
     headerLabel:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
     headerLabel:SetAnchor(TOPLEFT, tlw, TOPLEFT, 0, 2)
     headerLabel:SetAnchor(TOPRIGHT, tlw, TOPRIGHT, 0, 2)
     headerLabel:SetDrawLayer(1)
     headerLabel:SetMouseEnabled(true)
+    -- Dragging: forward mouse down/up to parent TLW for move behavior
+    headerLabel:SetHandler("OnMouseDown", function()
+        tlw:StartMoving()
+    end)
+    headerLabel:SetHandler("OnMouseUp", function()
+        tlw:StopMovingOrResizing()
+        SH.SaveWindowPosition()
+    end)
     headerLabel:SetHandler("OnMouseEnter", function(control)
         -- Battle Spirit is an artificial effect, not a regular ability.
         -- Find it among active artificial effects by matching the formatted name.
