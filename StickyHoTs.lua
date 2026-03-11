@@ -172,7 +172,7 @@ function SH.UpdateGroupDisplay()
     local nameText = ""
     local countText = ""
 
-    for i, entry in ipairs(sorted) do
+    for _, entry in ipairs(sorted) do
         local color
         if entry.count >= 8 then
             color = "|cFF3333"
@@ -183,12 +183,8 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66"
         end
-        if i > 1 then
-            nameText = nameText .. "\n"
-            countText = countText .. "\n"
-        end
-        nameText = nameText .. color .. entry.name
-        countText = countText .. color .. entry.count
+        nameText = nameText .. color .. entry.name .. "\n"
+        countText = countText .. color .. entry.count .. "\n"
     end
     nameText = nameText .. "|r"
     countText = countText .. "|r"
@@ -216,7 +212,7 @@ function SH.ResizeForMode()
     if not SH.controls.window then return end
     if SH.groupMode then
         -- Will be sized dynamically by UpdateGroupDisplay
-        SH.controls.window:SetDimensions(150, 30)
+        SH.controls.window:SetDimensions(150, 200)
         local contentTop = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
         SH.controls.label:ClearAnchors()
         SH.controls.label:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, SH.GROUP_INSET, contentTop)
