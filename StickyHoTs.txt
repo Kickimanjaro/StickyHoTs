@@ -1,6 +1,6 @@
 ## Title: StickyHoTs
 ## Author: Kickimanjaro
-## Description: Displays number of sticky Heal-over-Time effects to track the healing debuff added to Battle Spirit in U49, with display options for group or self only.
+## Description: Tracks number of sticky Heal-over-Time (HoT) effects on your group for awareness of the healing received debuff added to Battle Spirit in U49.
 ## APIVersion: 101048 101049
 ## Version: 2.0.0
 ## SavedVariables: StickyHoTsVars
