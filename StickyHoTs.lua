@@ -33,7 +33,8 @@ SH.mockData = nil -- set by /stickyhots test12
 SH.PLAYER_MODE_WIDTH = 80
 SH.PLAYER_MODE_HEIGHT = 32
 SH.GROUP_COUNT_WIDTH = 30 -- space reserved for right-aligned count numbers
-SH.GROUP_PADDING = 16    -- horizontal padding (left + right margins)
+SH.GROUP_PADDING = 20    -- horizontal padding (left + right margins)
+SH.GROUP_INSET = 10      -- left/right inset for content labels
 SH.GROUP_HEADER_HEIGHT = 24 -- header label height
 SH.GROUP_DIVIDER_HEIGHT = 8 -- divider texture height + spacing
 
@@ -196,7 +197,7 @@ function SH.UpdateGroupDisplay()
     local nameWidth, nameHeight = label:GetTextDimensions()
     local headerOffset = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
     local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
-    local height = headerOffset + nameHeight + 4 -- header + divider + content + padding
+    local height = headerOffset + nameHeight + 2 -- header + divider + content + padding
     SH.controls.window:SetDimensions(width, height)
 
     -- Stretch divider to match content width
@@ -213,13 +214,13 @@ function SH.ResizeForMode()
         SH.controls.window:SetDimensions(150, 30)
         local contentTop = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
         SH.controls.label:ClearAnchors()
-        SH.controls.label:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, 0, contentTop)
-        SH.controls.label:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, 0, 0)
+        SH.controls.label:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, SH.GROUP_INSET, contentTop)
+        SH.controls.label:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, -SH.GROUP_INSET, 0)
         SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
         SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_TOP)
         SH.controls.countLabel:ClearAnchors()
-        SH.controls.countLabel:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, 0, contentTop)
-        SH.controls.countLabel:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, 0, 0)
+        SH.controls.countLabel:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, SH.GROUP_INSET, contentTop)
+        SH.controls.countLabel:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, -SH.GROUP_INSET, 0)
         SH.controls.countLabel:SetHidden(false)
         SH.controls.headerLabel:SetHidden(false)
         SH.controls.divider:SetHidden(false)
