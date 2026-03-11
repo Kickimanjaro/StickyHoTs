@@ -187,11 +187,9 @@ function SH.UpdateGroupDisplay()
             nameText = nameText .. "\n"
             countText = countText .. "\n"
         end
-        nameText = nameText .. color .. entry.name
-        countText = countText .. color .. entry.count
+        nameText = nameText .. color .. entry.name .. "|r"
+        countText = countText .. color .. entry.count .. "|r"
     end
-    nameText = nameText .. "|r"
-    countText = countText .. "|r"
 
     label:SetText(nameText)
     label:SetColor(1, 1, 1, 1)
