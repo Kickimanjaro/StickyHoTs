@@ -596,12 +596,12 @@ function SH.OnAddOnLoaded(eventCode, addonName)
             end
         else
             d("|c00FF00[StickyHoTs]|r Usage:")
-            d("  /stickyhots |cFFFFFFtoggle|r — show/hide the window")
-            d("  /stickyhots |cFFFFFFself|r — self-only HoT counter")
-            d("  /stickyhots |cFFFFFFgroup|r — group HoT display")
-            d("  /stickyhots |cFFFFFFname|r — toggle account/character names")
-            d("  /stickyhots |cFFFFFFbackground|r — toggle backdrop")
-            d("  /stickyhots |cFFFFFFtest12|r — show mock 12-player group")
+            d("    /stickyhots |cFFFFFFtoggle|r — show/hide the window")
+            d("    /stickyhots |cFFFFFFself|r — self-only HoT counter")
+            d("    /stickyhots |cFFFFFFgroup|r — group HoT display")
+            d("    /stickyhots |cFFFFFFname|r — toggle account/character names")
+            d("    /stickyhots |cFFFFFFbackground|r — toggle backdrop")
+            d("    /stickyhots |cFFFFFFtest12|r — show mock 12-player group")
         end
     end
 
