@@ -31,8 +31,8 @@ SH.initialized = false
 SH.PLAYER_MODE_WIDTH = 80
 SH.PLAYER_MODE_HEIGHT = 32
 SH.GROUP_MODE_WIDTH = 200
-SH.GROUP_ROW_HEIGHT = 18
-SH.GROUP_HEADER_HEIGHT = 28
+SH.GROUP_ROW_HEIGHT = 24
+SH.GROUP_HEADER_HEIGHT = 30
 SH.GROUP_MAX_MEMBERS = 12
 
 -- Window manager reference
@@ -87,9 +87,11 @@ function SH.CountGroupStickyHoTs()
     local results = {}
     local groupSize = GetGroupSize()
 
+    -- Always read local player directly via "player" tag for reliable data
+    local playerName = GetUnitDisplayName("player")
+    results[playerName] = SH.CountHoTsOnUnit("player")
+
     if groupSize == 0 then
-        local name = GetUnitDisplayName("player")
-        results[name] = SH.CountHoTsOnUnit("player")
         return results
     end
 
@@ -97,11 +99,10 @@ function SH.CountGroupStickyHoTs()
         local unitTag = GetGroupUnitTagByIndex(i)
         if unitTag and DoesUnitExist(unitTag) then
             local name = GetUnitDisplayName(unitTag)
-            -- Use "player" tag for local player; group tags don't return
-            -- reliable buff data for your own character
-            local buffTag = AreUnitsEqual(unitTag, "player") and "player" or unitTag
-            local count = SH.CountHoTsOnUnit(buffTag)
-            results[name] = count
+            -- Skip the local player (already added above via "player" tag)
+            if name ~= playerName then
+                results[name] = SH.CountHoTsOnUnit(unitTag)
+            end
         end
     end
 
@@ -174,8 +175,9 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66" -- green: safe
         end
-        text = text .. string.format("%s%-20s %d|r\n", color, entry.name, entry.count)
+        text = text .. color .. entry.name .. "  " .. entry.count .. "\n"
     end
+    text = text .. "|r"
 
     label:SetText(text)
     label:SetColor(1, 1, 1, 1) -- neutral white; colors are inline
