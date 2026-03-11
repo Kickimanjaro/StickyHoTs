@@ -24,7 +24,7 @@ SH.groupMode = true
 SH.controls = {}
 SH.savedVars = nil
 SH.useCharacterName = false
-SH.showBackground = true
+SH.showBackground = false
 SH.mockData = nil -- set by /stickyhots test12
 
 -- Group mode UI dimensions
@@ -195,9 +195,9 @@ function SH.UpdateGroupDisplay()
 
     -- Size window to fit actual text content
     local nameWidth, nameHeight = label:GetTextDimensions()
-    local headerOffset = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
+    local headerOffset = SH.GROUP_INSET + SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
     local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
-    local height = headerOffset + nameHeight + SH.GROUP_INSET -- bottom padding matches sides
+    local height = headerOffset + nameHeight + SH.GROUP_INSET -- top and bottom padding match
     SH.controls.window:SetDimensions(width, height)
 
     -- Stretch divider to match content width
@@ -229,7 +229,7 @@ function SH.ResizeForMode()
     if SH.groupMode then
         -- Will be sized dynamically by UpdateGroupDisplay
         SH.controls.window:SetDimensions(150, 200)
-        local contentTop = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
+        local contentTop = SH.GROUP_INSET + SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
         SH.controls.label:ClearAnchors()
         SH.controls.label:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, SH.GROUP_INSET, contentTop)
         SH.controls.label:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, -SH.GROUP_INSET, 0)
@@ -350,8 +350,8 @@ function SH.CreateUI()
     headerLabel:SetColor(1, 1, 1, 1)
     headerLabel:SetText("HoTs")
     headerLabel:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
-    headerLabel:SetAnchor(TOPLEFT, tlw, TOPLEFT, 0, 2)
-    headerLabel:SetAnchor(TOPRIGHT, tlw, TOPRIGHT, 0, 2)
+    headerLabel:SetAnchor(TOPLEFT, tlw, TOPLEFT, 0, SH.GROUP_INSET)
+    headerLabel:SetAnchor(TOPRIGHT, tlw, TOPRIGHT, 0, SH.GROUP_INSET)
     headerLabel:SetDrawLayer(1)
     headerLabel:SetMouseEnabled(true)
     -- Dragging: forward mouse down/up to parent TLW for move behavior
@@ -517,7 +517,7 @@ function SH.OnAddOnLoaded(eventCode, addonName)
         position = nil, -- { x = number, y = number }
         groupMode = true,
         useCharacterName = false,
-        showBackground = true,
+        showBackground = false,
     }
     SH.savedVars = ZO_SavedVars:NewAccountWide("StickyHoTsVars", 1, nil, defaults)
     SH.groupMode = SH.savedVars.groupMode or false
