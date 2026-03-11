@@ -26,6 +26,7 @@ SH.groupMode = false
 SH.controls = {}
 SH.savedVars = nil
 SH.initialized = false
+SH.useCharacterName = false
 SH.mockData = nil -- set by /stickyhots test12
 
 -- Group mode UI dimensions
@@ -90,7 +91,8 @@ function SH.CountGroupStickyHoTs()
 
     -- Always read local player directly via "player" tag for reliable data
     local playerName = GetUnitDisplayName("player")
-    results[playerName] = SH.CountHoTsOnUnit("player")
+    local playerLabel = SH.useCharacterName and GetUnitName("player") or playerName
+    results[playerLabel] = SH.CountHoTsOnUnit("player")
 
     if groupSize == 0 then
         return results
@@ -102,7 +104,8 @@ function SH.CountGroupStickyHoTs()
             local name = GetUnitDisplayName(unitTag)
             -- Skip the local player (already added above via "player" tag)
             if name ~= playerName then
-                results[name] = SH.CountHoTsOnUnit(unitTag)
+                local label = SH.useCharacterName and GetUnitName(unitTag) or name
+                results[label] = SH.CountHoTsOnUnit(unitTag)
             end
         end
     end
@@ -176,7 +179,7 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66" -- green: safe
         end
-        text = text .. color .. entry.count .. "  " .. entry.name .. "\n"
+        text = text .. string.format("%s%2d  %s\n", color, entry.count, entry.name)
     end
     text = text .. "|r"
 
@@ -405,9 +408,11 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     local defaults = {
         position = nil, -- { x = number, y = number }
         groupMode = false,
+        useCharacterName = false,
     }
     SH.savedVars = ZO_SavedVars:NewAccountWide("StickyHoTsVars", 1, nil, defaults)
     SH.groupMode = SH.savedVars.groupMode or false
+    SH.useCharacterName = SH.savedVars.useCharacterName or false
 
     -- Create UI
     SH.CreateUI()
@@ -442,6 +447,17 @@ function SH.OnAddOnLoaded(eventCode, addonName)
             else
                 d("|c00FF00[StickyHoTs]|r Group mode OFF")
             end
+        elseif args == "name" then
+            SH.useCharacterName = not SH.useCharacterName
+            SH.savedVars.useCharacterName = SH.useCharacterName
+            SH.RefreshCount()
+            if SH.useCharacterName then
+                d("|c00FF00[StickyHoTs]|r Showing character names")
+            else
+                d("|c00FF00[StickyHoTs]|r Showing account names")
+            end
+        elseif args == "test12" then
+            SH.ShowMockGroup()
         elseif SH.controls.window then
             local isHidden = SH.controls.window:IsHidden()
             SH.controls.window:SetHidden(not isHidden)
@@ -451,11 +467,6 @@ function SH.OnAddOnLoaded(eventCode, addonName)
                 d("|c00FF00[StickyHoTs]|r Hidden")
             end
         end
-    end
-
-    -- /stickyhots test12: simulate a 12-player group for layout testing
-    SLASH_COMMANDS["/stickytest12"] = function()
-        SH.ShowMockGroup()
     end
 
     -- Initial scan
