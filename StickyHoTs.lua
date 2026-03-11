@@ -349,11 +349,23 @@ function SH.CreateUI()
     headerLabel:SetDrawLayer(1)
     headerLabel:SetMouseEnabled(true)
     headerLabel:SetHandler("OnMouseEnter", function(control)
+        -- Battle Spirit is an artificial effect, not a regular ability.
+        -- Find it among active artificial effects and show its tooltip.
         InitializeTooltip(InformationTooltip, control, BOTTOM, 0, -5, TOP)
-        local name = GetAbilityName(SH.BATTLE_SPIRIT_ID)
-        local description = GetAbilityDescription(SH.BATTLE_SPIRIT_ID)
-        InformationTooltip:AddLine(name, "", ZO_NORMAL_TEXT:UnpackRGBA())
-        InformationTooltip:AddLine(description)
+        local found = false
+        for effectId in ZO_GetNextActiveArtificialEffectIdIter do
+            local displayName = GetArtificialEffectInfo(effectId)
+            if displayName == GetAbilityName(SH.BATTLE_SPIRIT_ID) then
+                InformationTooltip:AddLine(displayName, "", ZO_SELECTED_TEXT:UnpackRGBA())
+                InformationTooltip:AddLine(GetArtificialEffectTooltipText(effectId), "", ZO_NORMAL_TEXT:UnpackRGBA())
+                found = true
+                break
+            end
+        end
+        if not found then
+            InformationTooltip:AddLine(GetAbilityName(SH.BATTLE_SPIRIT_ID), "", ZO_SELECTED_TEXT:UnpackRGBA())
+            InformationTooltip:AddLine("Battle Spirit is not currently active.", "", ZO_NORMAL_TEXT:UnpackRGBA())
+        end
     end)
     headerLabel:SetHandler("OnMouseExit", function()
         ClearTooltip(InformationTooltip)
