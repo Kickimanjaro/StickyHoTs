@@ -176,7 +176,7 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66" -- green: safe
         end
-        text = text .. color .. entry.name .. "  " .. entry.count .. "\n"
+        text = text .. color .. entry.count .. "  " .. entry.name .. "\n"
     end
     text = text .. "|r"
 
