@@ -97,7 +97,10 @@ function SH.CountGroupStickyHoTs()
         local unitTag = GetGroupUnitTagByIndex(i)
         if unitTag and DoesUnitExist(unitTag) then
             local name = GetUnitDisplayName(unitTag)
-            local count = SH.CountHoTsOnUnit(unitTag)
+            -- Use "player" tag for local player; group tags don't return
+            -- reliable buff data for your own character
+            local buffTag = AreUnitsEqual(unitTag, "player") and "player" or unitTag
+            local count = SH.CountHoTsOnUnit(buffTag)
             results[name] = count
         end
     end
@@ -171,7 +174,7 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66" -- green: safe
         end
-        text = text .. string.format("%s%s  %d|r\n", color, entry.name, entry.count)
+        text = text .. string.format("%s%-20s %d|r\n", color, entry.name, entry.count)
     end
 
     label:SetText(text)
@@ -296,6 +299,7 @@ function SH.CreateUI()
     label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
     label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
     label:SetAnchorFill(tlw)
+    label:SetMaxLineCount(0)
     label:SetDrawLayer(1)
     SH.controls.label = label
 
