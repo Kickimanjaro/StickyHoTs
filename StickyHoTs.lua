@@ -17,7 +17,6 @@ SH.author = "Kickimanjaro"
 -- Constants
 SH.MAX_HOTS = 8
 SH.UPDATE_INTERVAL_MS = 1000
-SH.BATTLE_SPIRIT_ID = 999014
 
 -- State
 SH.hotCount = 0
@@ -350,20 +349,23 @@ function SH.CreateUI()
     headerLabel:SetMouseEnabled(true)
     headerLabel:SetHandler("OnMouseEnter", function(control)
         -- Battle Spirit is an artificial effect, not a regular ability.
-        -- Find it among active artificial effects and show its tooltip.
+        -- Find it among active artificial effects by matching the formatted name.
+        -- We use zo_strformat to strip grammar markers from the displayName,
+        -- matching how the character sheet formats artificial effect names.
         InitializeTooltip(InformationTooltip, control, BOTTOM, 0, -5, TOP)
         local found = false
         for effectId in ZO_GetNextActiveArtificialEffectIdIter do
             local displayName = GetArtificialEffectInfo(effectId)
-            if displayName == GetAbilityName(SH.BATTLE_SPIRIT_ID) then
-                InformationTooltip:AddLine(displayName, "", ZO_SELECTED_TEXT:UnpackRGBA())
+            local formattedName = zo_strformat(SI_ABILITY_TOOLTIP_NAME, displayName)
+            if formattedName == "Battle Spirit" then
+                InformationTooltip:AddLine(formattedName, "", ZO_SELECTED_TEXT:UnpackRGBA())
                 InformationTooltip:AddLine(GetArtificialEffectTooltipText(effectId), "", ZO_NORMAL_TEXT:UnpackRGBA())
                 found = true
                 break
             end
         end
         if not found then
-            InformationTooltip:AddLine(GetAbilityName(SH.BATTLE_SPIRIT_ID), "", ZO_SELECTED_TEXT:UnpackRGBA())
+            InformationTooltip:AddLine("Battle Spirit", "", ZO_SELECTED_TEXT:UnpackRGBA())
             InformationTooltip:AddLine("Battle Spirit is not currently active.", "", ZO_NORMAL_TEXT:UnpackRGBA())
         end
     end)
