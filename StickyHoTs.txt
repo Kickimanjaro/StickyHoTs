@@ -1,6 +1,6 @@
 ## Title: StickyHoTs
 ## Author: Kickimanjaro
-## Description: Counts active Heal over Time effects on your character and displays a movable HoT counter (current/8)
+## Description: Displays number of sticky Heal-over-Time effects to track the healing debuff added to Battle Spirit in U49, with display options for group or self only.
 ## APIVersion: 101048 101049
 ## Version: 2.0.0
 ## SavedVariables: StickyHoTsVars
