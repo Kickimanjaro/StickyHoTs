@@ -26,6 +26,7 @@ SH.groupMode = false
 SH.controls = {}
 SH.savedVars = nil
 SH.initialized = false
+SH.mockData = nil -- set by /stickyhots test12
 
 -- Group mode UI dimensions
 SH.PLAYER_MODE_WIDTH = 80
@@ -151,7 +152,7 @@ function SH.UpdateGroupDisplay()
     local label = SH.controls.label
     if not label then return end
 
-    local data = SH.CountGroupStickyHoTs()
+    local data = SH.mockData or SH.CountGroupStickyHoTs()
 
     -- Convert to sortable table
     local sorted = {}
@@ -452,10 +453,55 @@ function SH.OnAddOnLoaded(eventCode, addonName)
         end
     end
 
+    -- /stickyhots test12: simulate a 12-player group for layout testing
+    SLASH_COMMANDS["/stickytest12"] = function()
+        SH.ShowMockGroup()
+    end
+
     -- Initial scan
     SH.RefreshCount()
 
     SH.initialized = true
+end
+
+-- ============================================================================
+-- Debug: Mock 12-player group for layout testing
+-- ============================================================================
+
+local MOCK_NAMES = {
+    "@TankMain",     "@OffTank",       "@HealBot",
+    "@RestoStaff",   "@StamBlade",     "@MagSorc",
+    "@BowBoy",       "@CritTempBoi",   "@NecroMancer",
+    "@IceWarden",    "@ArcanistPrime", "@Kickimanjaro",
+}
+
+function SH.GenerateMockData()
+    local data = {}
+    -- Assign HoT counts that cover all color thresholds
+    local counts = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 12 }
+    for i, name in ipairs(MOCK_NAMES) do
+        data[name] = counts[i] or math.random(0, 12)
+    end
+    return data
+end
+
+function SH.ShowMockGroup()
+    -- Force group mode on and inject mock data
+    SH.groupMode = true
+    SH.mockData = SH.GenerateMockData()
+    SH.ResizeForMode()
+    SH.UpdateGroupDisplay()
+    SH.controls.window:SetHidden(false)
+    d("|c00FF00[StickyHoTs]|r Mock 12-player group shown. Type /stickyhots to hide.")
+
+    -- Clear mock data after 30 seconds so real data resumes
+    zo_callLater(function()
+        if SH.mockData then
+            SH.mockData = nil
+            SH.RefreshCount()
+            d("|c00FF00[StickyHoTs]|r Mock data cleared, showing real data.")
+        end
+    end, 30000)
 end
 
 -- Register for addon loaded
