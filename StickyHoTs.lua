@@ -27,6 +27,7 @@ SH.controls = {}
 SH.savedVars = nil
 SH.initialized = false
 SH.useCharacterName = false
+SH.showBackground = true
 SH.mockData = nil -- set by /stickyhots test12
 
 -- Group mode UI dimensions
@@ -325,6 +326,9 @@ function SH.CreateUI()
     bg:SetEdgeColor(0, 0, 0, 0.8)
     SH.controls.backdrop = bg
 
+    -- Apply saved background visibility
+    bg:SetHidden(not SH.showBackground)
+
     -- Header label (group mode: centered "StickyHoTs" title)
     local headerLabel = wm:CreateControl("$(parent)Header", tlw, CT_LABEL)
     headerLabel:SetFont("ZoFontGameLarge")
@@ -472,10 +476,13 @@ function SH.OnAddOnLoaded(eventCode, addonName)
         position = nil, -- { x = number, y = number }
         groupMode = false,
         useCharacterName = false,
+        showBackground = true,
     }
     SH.savedVars = ZO_SavedVars:NewAccountWide("StickyHoTsVars", 1, nil, defaults)
     SH.groupMode = SH.savedVars.groupMode or false
     SH.useCharacterName = SH.savedVars.useCharacterName or false
+    if SH.savedVars.showBackground == nil then SH.savedVars.showBackground = true end
+    SH.showBackground = SH.savedVars.showBackground
 
     -- Create UI
     SH.CreateUI()
@@ -522,6 +529,15 @@ function SH.OnAddOnLoaded(eventCode, addonName)
                 d("|c00FF00[StickyHoTs]|r Showing character names")
             else
                 d("|c00FF00[StickyHoTs]|r Showing account names")
+            end
+        elseif args == "background" then
+            SH.showBackground = not SH.showBackground
+            SH.savedVars.showBackground = SH.showBackground
+            SH.controls.backdrop:SetHidden(not SH.showBackground)
+            if SH.showBackground then
+                d("|c00FF00[StickyHoTs]|r Background ON")
+            else
+                d("|c00FF00[StickyHoTs]|r Background OFF")
             end
         elseif args == "test12" then
             SH.ShowMockGroup()
