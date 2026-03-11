@@ -2,7 +2,7 @@
 ## Author: Kickimanjaro
 ## Description: Counts active Heal over Time effects on your character and displays a movable HoT counter (current/8)
 ## APIVersion: 101048 101049
-## Version: 1.0.0
+## Version: 2.0.0
 ## SavedVariables: StickyHoTsVars
 
 StickyHoTs.lua
