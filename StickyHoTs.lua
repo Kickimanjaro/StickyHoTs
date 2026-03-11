@@ -153,7 +153,8 @@ end
 ]]--
 function SH.UpdateGroupDisplay()
     local label = SH.controls.label
-    if not label then return end
+    local countLabel = SH.controls.countLabel
+    if not label or not countLabel then return end
 
     local data = SH.mockData or SH.CountGroupStickyHoTs()
 
@@ -166,25 +167,30 @@ function SH.UpdateGroupDisplay()
     -- Sort highest HoTs first
     table.sort(sorted, function(a, b) return a.count > b.count end)
 
-    local text = "|cFFFFFFStickyHoTs|r\n"
+    local nameText = "|cFFFFFFStickyHoTs|r\n"
+    local countText = "\n" -- blank line to match header
 
     for _, entry in ipairs(sorted) do
         local color
         if entry.count >= 8 then
-            color = "|cFF3333" -- red: debuff active
+            color = "|cFF3333"
         elseif entry.count >= 6 then
-            color = "|cFFAA33" -- orange: danger
+            color = "|cFFAA33"
         elseif entry.count >= 4 then
-            color = "|cFFFF66" -- yellow: approaching cap
+            color = "|cFFFF66"
         else
-            color = "|c66FF66" -- green: safe
+            color = "|c66FF66"
         end
-        text = text .. string.format("%s%02d  %s\n", color, entry.count, entry.name)
+        nameText = nameText .. color .. entry.name .. "\n"
+        countText = countText .. color .. entry.count .. "\n"
     end
-    text = text .. "|r"
+    nameText = nameText .. "|r"
+    countText = countText .. "|r"
 
-    label:SetText(text)
-    label:SetColor(1, 1, 1, 1) -- neutral white; colors are inline
+    label:SetText(nameText)
+    label:SetColor(1, 1, 1, 1)
+    countLabel:SetText(countText)
+    countLabel:SetColor(1, 1, 1, 1)
 
     -- Resize window to fit content
     local rowCount = #sorted
@@ -198,14 +204,16 @@ end
 function SH.ResizeForMode()
     if not SH.controls.window then return end
     if SH.groupMode then
-        -- Will be sized dynamically by UpdateGroupDisplay
         SH.controls.window:SetDimensions(SH.GROUP_MODE_WIDTH, SH.GROUP_HEADER_HEIGHT)
         SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
         SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_TOP)
+        SH.controls.countLabel:SetHidden(false)
     else
         SH.controls.window:SetDimensions(SH.PLAYER_MODE_WIDTH, SH.PLAYER_MODE_HEIGHT)
         SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
         SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
+        SH.controls.countLabel:SetHidden(true)
+        SH.controls.countLabel:SetText("")
     end
 end
 
@@ -297,7 +305,7 @@ function SH.CreateUI()
     bg:SetEdgeColor(0, 0, 0, 0.8)
     SH.controls.backdrop = bg
 
-    -- Counter label
+    -- Counter label (player mode: centered count; group mode: left-aligned names)
     local label = wm:CreateControl("$(parent)Label", tlw, CT_LABEL)
     label:SetFont("ZoFontGameLarge")
     label:SetColor(1, 1, 1, 1)
@@ -308,6 +316,19 @@ function SH.CreateUI()
     label:SetMaxLineCount(0)
     label:SetDrawLayer(1)
     SH.controls.label = label
+
+    -- Right-aligned count label (group mode only)
+    local countLabel = wm:CreateControl("$(parent)CountLabel", tlw, CT_LABEL)
+    countLabel:SetFont("ZoFontGameLarge")
+    countLabel:SetColor(1, 1, 1, 1)
+    countLabel:SetText("")
+    countLabel:SetHorizontalAlignment(TEXT_ALIGN_RIGHT)
+    countLabel:SetVerticalAlignment(TEXT_ALIGN_TOP)
+    countLabel:SetAnchorFill(tlw)
+    countLabel:SetMaxLineCount(0)
+    countLabel:SetDrawLayer(1)
+    countLabel:SetHidden(true)
+    SH.controls.countLabel = countLabel
 
     -- Restore saved position or default to center
     SH.RestoreWindowPosition()
