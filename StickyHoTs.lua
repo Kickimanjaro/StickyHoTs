@@ -197,7 +197,7 @@ function SH.UpdateGroupDisplay()
     local nameWidth, nameHeight = label:GetTextDimensions()
     local headerOffset = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
     local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
-    local height = headerOffset + nameHeight + 2 -- header + divider + content + padding
+    local height = headerOffset + nameHeight -- header + divider + content
     SH.controls.window:SetDimensions(width, height)
 
     -- Stretch divider to match content width
