@@ -11,20 +11,30 @@ local SH = StickyHoTs
 
 -- Addon metadata
 SH.name = "StickyHoTs"
-SH.version = "1.0.0"
+SH.version = "2.0.0"
 SH.author = "Kickimanjaro"
 
 -- Constants
 SH.MAX_HOTS = 8
 SH.UPDATE_INTERVAL_MS = 1000
-SH.BATTLE_SPIRIT_ID = 999014
 
 -- State
-SH.hotCount = 0
 SH.inPvPZone = false
+SH.groupMode = true
 SH.controls = {}
 SH.savedVars = nil
-SH.initialized = false
+SH.useCharacterName = false
+SH.showBackground = false
+SH.mockData = nil -- set by /stickyhots test12
+
+-- Group mode UI dimensions
+SH.PLAYER_MODE_WIDTH = 80
+SH.PLAYER_MODE_HEIGHT = 32
+SH.GROUP_COUNT_WIDTH = 30 -- space reserved for right-aligned count numbers
+SH.GROUP_PADDING = 20    -- total extra width beyond name text (count column + margins)
+SH.GROUP_INSET = 10      -- left/right inset for content labels
+SH.GROUP_HEADER_HEIGHT = 24 -- header label height
+SH.GROUP_DIVIDER_HEIGHT = 8 -- divider texture height + spacing
 
 -- Window manager reference
 local wm = GetWindowManager()
@@ -34,22 +44,23 @@ local wm = GetWindowManager()
 -- ============================================================================
 
 --[[
-    Count active Heal over Time effects on the player.
+    Count active Heal over Time effects on a specific unit.
     
     Filters for buffs (not debuffs) with abilityType == ABILITY_TYPE_HEAL
-    that have a duration (timeEnding > timeStarted and timeEnding > 0).
+    that have remaining duration (timeEnding > 0 and timeEnding > now).
     
+    @param unitTag  string  Unit tag to scan (e.g. "player", "group1")
     @return number  Count of active HoT effects
 ]]--
-function SH.CountHoTs()
+function SH.CountHoTsOnUnit(unitTag)
     local count = 0
-    local numBuffs = GetNumBuffs("player")
+    local numBuffs = GetNumBuffs(unitTag)
     local now = GetGameTimeSeconds()
 
     for i = 1, numBuffs do
         local buffName, timeStarted, timeEnding, buffSlot, stackCount, iconFilename,
               deprecatedBuffType, effectType, abilityType, statusEffectType, abilityId,
-              canClickOff, castByPlayer = GetUnitBuffInfo("player", i)
+              canClickOff, castByPlayer = GetUnitBuffInfo(unitTag, i)
 
         -- A HoT is a buff (not debuff) with ABILITY_TYPE_HEAL and a remaining duration
         if effectType == BUFF_EFFECT_TYPE_BUFF
@@ -61,6 +72,39 @@ function SH.CountHoTs()
     end
 
     return count
+end
+
+--[[
+    Scan group members and count HoTs on each player.
+    Returns a table:  {[displayName] = count}
+    Falls back to scanning just the player when solo.
+]]--
+function SH.CountGroupStickyHoTs()
+    local results = {}
+    local groupSize = GetGroupSize()
+
+    -- Always read local player directly via "player" tag for reliable data
+    local playerName = GetUnitDisplayName("player")
+    local playerLabel = SH.useCharacterName and GetUnitName("player") or playerName
+    results[playerLabel] = SH.CountHoTsOnUnit("player")
+
+    if groupSize == 0 then
+        return results
+    end
+
+    for i = 1, groupSize do
+        local unitTag = GetGroupUnitTagByIndex(i)
+        if unitTag and DoesUnitExist(unitTag) then
+            local name = GetUnitDisplayName(unitTag)
+            -- Skip the local player (already added above via "player" tag)
+            if name ~= playerName then
+                local label = SH.useCharacterName and GetUnitName(unitTag) or name
+                results[label] = SH.CountHoTsOnUnit(unitTag)
+            end
+        end
+    end
+
+    return results
 end
 
 -- ============================================================================
@@ -78,8 +122,6 @@ end
     @param count  number  Current number of active HoTs
 ]]--
 function SH.UpdateDisplay(count)
-    SH.hotCount = count
-
     local label = SH.controls.label
     if not label then return end
 
@@ -98,12 +140,130 @@ function SH.UpdateDisplay(count)
 end
 
 --[[
+    Update the group HoT display with a sorted, color-coded list.
+    Shows @name and HoT count for each group member.
+]]--
+function SH.UpdateGroupDisplay()
+    local label = SH.controls.label
+    local countLabel = SH.controls.countLabel
+    if not label or not countLabel then return end
+
+    local data = SH.mockData or SH.CountGroupStickyHoTs()
+
+    -- Convert to sortable table
+    local sorted = {}
+    for name, count in pairs(data) do
+        table.insert(sorted, {name = name, count = count})
+    end
+
+    -- Sort highest HoTs first
+    table.sort(sorted, function(a, b) return a.count > b.count end)
+
+    local nameText = ""
+    local countText = ""
+
+    for i, entry in ipairs(sorted) do
+        local color
+        if entry.count >= 8 then
+            color = "|cFF3333"
+        elseif entry.count >= 6 then
+            color = "|cFFAA33"
+        elseif entry.count >= 4 then
+            color = "|cFFFF66"
+        else
+            color = "|c66FF66"
+        end
+        if i > 1 then
+            nameText = nameText .. "\n"
+            countText = countText .. "\n"
+        end
+        nameText = nameText .. color .. entry.name
+        countText = countText .. color .. entry.count
+    end
+    nameText = nameText .. "|r"
+    countText = countText .. "|r"
+
+    -- Expand window before setting text so labels have room for all lines.
+    -- Must expand BOTH width and height — labels are two-point anchored, so
+    -- GetTextDimensions() wraps text within the label's current width.
+    SH.controls.window:SetDimensions(800, 800)
+
+    label:SetText(nameText)
+    label:SetColor(1, 1, 1, 1)
+    countLabel:SetText(countText)
+    countLabel:SetColor(1, 1, 1, 1)
+
+    -- Size window to fit actual text content
+    local nameWidth, nameHeight = label:GetTextDimensions()
+    local headerOffset = SH.GROUP_INSET + SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
+    local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
+    local height = headerOffset + nameHeight + SH.GROUP_INSET -- top and bottom padding match
+    SH.controls.window:SetDimensions(width, height)
+
+    -- Stretch divider to match content width
+    SH.controls.divider:SetWidth(width - SH.GROUP_PADDING)
+end
+
+--[[
+    Update the header text with Battle Spirit icon.
+    The addon only displays in PvP zones where Battle Spirit is always active,
+    so we can rely on GetArtificialEffectInfo() returning its icon.
+]]--
+function SH.UpdateHeaderText()
+    if not SH.controls.headerLabel then return end
+    for effectId in ZO_GetNextActiveArtificialEffectIdIter do
+        local displayName, icon = GetArtificialEffectInfo(effectId)
+        if zo_strformat(SI_ABILITY_TOOLTIP_NAME, displayName) == "Battle Spirit" then
+            SH.controls.headerLabel:SetText(zo_iconFormat(icon, 24, 24) .. " HoTs")
+            return
+        end
+    end
+    SH.controls.headerLabel:SetText("HoTs")
+end
+
+--[[
+    Resize the window to match the current display mode.
+]]--
+function SH.ResizeForMode()
+    if not SH.controls.window then return end
+    if SH.groupMode then
+        -- Will be sized dynamically by UpdateGroupDisplay
+        SH.controls.window:SetDimensions(150, 200)
+        local contentTop = SH.GROUP_INSET + SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
+        SH.controls.label:ClearAnchors()
+        SH.controls.label:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, SH.GROUP_INSET, contentTop)
+        SH.controls.label:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, -SH.GROUP_INSET, 0)
+        SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
+        SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_TOP)
+        SH.controls.countLabel:ClearAnchors()
+        SH.controls.countLabel:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, SH.GROUP_INSET, contentTop)
+        SH.controls.countLabel:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, -SH.GROUP_INSET, 0)
+        SH.controls.countLabel:SetHidden(false)
+        SH.controls.headerLabel:SetHidden(false)
+        SH.controls.divider:SetHidden(false)
+    else
+        SH.controls.window:SetDimensions(SH.PLAYER_MODE_WIDTH, SH.PLAYER_MODE_HEIGHT)
+        SH.controls.label:ClearAnchors()
+        SH.controls.label:SetAnchorFill(SH.controls.window)
+        SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
+        SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
+        SH.controls.countLabel:SetHidden(true)
+        SH.controls.countLabel:SetText("")
+        SH.controls.headerLabel:SetHidden(true)
+        SH.controls.divider:SetHidden(true)
+    end
+end
+
+--[[
     Recount HoTs and refresh the display. Called by both event handlers
     and the periodic fallback scan.
 ]]--
 function SH.RefreshCount()
-    local count = SH.CountHoTs()
-    SH.UpdateDisplay(count)
+    if SH.groupMode then
+        SH.UpdateGroupDisplay()
+    else
+        SH.UpdateDisplay(SH.CountHoTsOnUnit("player"))
+    end
 end
 
 -- ============================================================================
@@ -181,7 +341,57 @@ function SH.CreateUI()
     bg:SetEdgeColor(0, 0, 0, 0.8)
     SH.controls.backdrop = bg
 
-    -- Counter label
+    -- Apply saved background visibility
+    bg:SetHidden(not SH.showBackground)
+
+    -- Header label (group mode: Battle Spirit icon + "HoTs" title)
+    local headerLabel = wm:CreateControl("$(parent)Header", tlw, CT_LABEL)
+    headerLabel:SetFont("ZoFontGameLarge")
+    headerLabel:SetColor(1, 1, 1, 1)
+    headerLabel:SetText("HoTs")
+    headerLabel:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
+    headerLabel:SetAnchor(TOPLEFT, tlw, TOPLEFT, 0, SH.GROUP_INSET)
+    headerLabel:SetAnchor(TOPRIGHT, tlw, TOPRIGHT, 0, SH.GROUP_INSET)
+    headerLabel:SetDrawLayer(1)
+    headerLabel:SetMouseEnabled(true)
+    -- Dragging: forward mouse down/up to parent TLW for move behavior
+    headerLabel:SetHandler("OnMouseDown", function()
+        tlw:StartMoving()
+    end)
+    headerLabel:SetHandler("OnMouseUp", function()
+        tlw:StopMovingOrResizing()
+        SH.SaveWindowPosition()
+    end)
+    headerLabel:SetHandler("OnMouseEnter", function(control)
+        -- Show Battle Spirit tooltip. Since the addon only displays in PvP zones,
+        -- Battle Spirit is always active when this handler fires.
+        InitializeTooltip(InformationTooltip, control, BOTTOM, 0, -5, TOP)
+        for effectId in ZO_GetNextActiveArtificialEffectIdIter do
+            local displayName = GetArtificialEffectInfo(effectId)
+            if zo_strformat(SI_ABILITY_TOOLTIP_NAME, displayName) == "Battle Spirit" then
+                InformationTooltip:AddLine(displayName, "", ZO_SELECTED_TEXT:UnpackRGBA())
+                InformationTooltip:AddLine(GetArtificialEffectTooltipText(effectId), "", ZO_NORMAL_TEXT:UnpackRGBA())
+                break
+            end
+        end
+    end)
+    headerLabel:SetHandler("OnMouseExit", function()
+        ClearTooltip(InformationTooltip)
+    end)
+    headerLabel:SetHidden(true)
+    SH.controls.headerLabel = headerLabel
+
+    -- Horizontal divider under header (group mode only)
+    local divider = wm:CreateControl("$(parent)Divider", tlw, CT_TEXTURE)
+    divider:SetTexture("EsoUI/Art/Miscellaneous/horizontalDivider.dds")
+    divider:SetAnchor(TOP, headerLabel, BOTTOM, 0, 2)
+    divider:SetDimensions(150, 4)
+    divider:SetColor(0.5, 0.5, 0.5, 0.6)
+    divider:SetDrawLayer(1)
+    divider:SetHidden(true)
+    SH.controls.divider = divider
+
+    -- Counter label (player mode: centered count; group mode: left-aligned names)
     local label = wm:CreateControl("$(parent)Label", tlw, CT_LABEL)
     label:SetFont("ZoFontGameLarge")
     label:SetColor(1, 1, 1, 1)
@@ -189,8 +399,22 @@ function SH.CreateUI()
     label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
     label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
     label:SetAnchorFill(tlw)
+    label:SetMaxLineCount(0)
     label:SetDrawLayer(1)
     SH.controls.label = label
+
+    -- Right-aligned count label (group mode only)
+    local countLabel = wm:CreateControl("$(parent)CountLabel", tlw, CT_LABEL)
+    countLabel:SetFont("ZoFontGameLarge")
+    countLabel:SetColor(1, 1, 1, 1)
+    countLabel:SetText("")
+    countLabel:SetHorizontalAlignment(TEXT_ALIGN_RIGHT)
+    countLabel:SetVerticalAlignment(TEXT_ALIGN_TOP)
+    countLabel:SetAnchorFill(tlw)
+    countLabel:SetMaxLineCount(0)
+    countLabel:SetDrawLayer(1)
+    countLabel:SetHidden(true)
+    SH.controls.countLabel = countLabel
 
     -- Restore saved position or default to center
     SH.RestoreWindowPosition()
@@ -275,6 +499,7 @@ end
 function SH.OnPlayerActivated()
     -- Detect PvP zone using reliable API functions (works immediately, no event timing issues)
     SH.inPvPZone = SH.IsInPvPZone()
+    SH.UpdateHeaderText()
     SH.RefreshCount()
     SH.UpdatePvPVisibility()
 end
@@ -290,11 +515,19 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Initialize SavedVariables (account-wide)
     local defaults = {
         position = nil, -- { x = number, y = number }
+        groupMode = true,
+        useCharacterName = false,
+        showBackground = false,
     }
     SH.savedVars = ZO_SavedVars:NewAccountWide("StickyHoTsVars", 1, nil, defaults)
+    SH.groupMode = SH.savedVars.groupMode or false
+    SH.useCharacterName = SH.savedVars.useCharacterName or false
+    if SH.savedVars.showBackground == nil then SH.savedVars.showBackground = true end
+    SH.showBackground = SH.savedVars.showBackground
 
     -- Create UI
     SH.CreateUI()
+    SH.ResizeForMode()
 
     -- Register for buff change events on the player
     EVENT_MANAGER:RegisterForEvent(SH.name, EVENT_EFFECT_CHANGED, SH.OnEffectChanged)
@@ -309,23 +542,120 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Scene callbacks for HUD visibility
     SH.RegisterSceneCallbacks()
 
-    -- Slash command to toggle visibility
-    SLASH_COMMANDS["/stickyhots"] = function()
-        if SH.controls.window then
-            local isHidden = SH.controls.window:IsHidden()
-            SH.controls.window:SetHidden(not isHidden)
-            if isHidden then
-                d("|c00FF00[StickyHoTs]|r Shown — drag to reposition")
-            else
-                d("|c00FF00[StickyHoTs]|r Hidden")
+    -- Refresh immediately when group composition changes
+    EVENT_MANAGER:RegisterForEvent(SH.name, EVENT_GROUP_MEMBER_JOINED, function() SH.RefreshCount() end)
+    EVENT_MANAGER:RegisterForEvent(SH.name, EVENT_GROUP_MEMBER_LEFT, function() SH.RefreshCount() end)
+
+    -- Slash commands
+    SLASH_COMMANDS["/stickyhots"] = function(args)
+        if args == "group" then
+            SH.groupMode = true
+            SH.savedVars.groupMode = true
+            SH.ResizeForMode()
+            SH.RefreshCount()
+            d("|c00FF00[StickyHoTs]|r Group mode")
+        elseif args == "self" then
+            SH.groupMode = false
+            SH.savedVars.groupMode = false
+            SH.ResizeForMode()
+            SH.RefreshCount()
+            d("|c00FF00[StickyHoTs]|r Self mode")
+        elseif args == "name" then
+            SH.useCharacterName = not SH.useCharacterName
+            SH.savedVars.useCharacterName = SH.useCharacterName
+            -- Regenerate mock data if active so it picks up the name change
+            if SH.mockData then
+                SH.mockData = SH.GenerateMockData()
             end
+            SH.RefreshCount()
+            if SH.useCharacterName then
+                d("|c00FF00[StickyHoTs]|r Showing character names")
+            else
+                d("|c00FF00[StickyHoTs]|r Showing account names")
+            end
+        elseif args == "background" then
+            SH.showBackground = not SH.showBackground
+            SH.savedVars.showBackground = SH.showBackground
+            SH.controls.backdrop:SetHidden(not SH.showBackground)
+            if SH.showBackground then
+                d("|c00FF00[StickyHoTs]|r Background ON")
+            else
+                d("|c00FF00[StickyHoTs]|r Background OFF")
+            end
+        elseif args == "test12" then
+            SH.ShowMockGroup()
+        elseif args == "show" or args == "hide" or args == "toggle" then
+            if SH.controls.window then
+                local isHidden = SH.controls.window:IsHidden()
+                SH.controls.window:SetHidden(not isHidden)
+                if isHidden then
+                    d("|c00FF00[StickyHoTs]|r Shown \226\128\148 drag to reposition")
+                else
+                    d("|c00FF00[StickyHoTs]|r Hidden")
+                end
+            end
+        else
+            d("|c00FF00[StickyHoTs]|r Usage:")
+            d("/stickyhots |cFFFFFFtoggle|r — show/hide the window")
+            d("/stickyhots |cFFFFFFself|r — self-only HoT counter")
+            d("/stickyhots |cFFFFFFgroup|r — group HoT display")
+            d("/stickyhots |cFFFFFFname|r — toggle account/character names")
+            d("/stickyhots |cFFFFFFbackground|r — toggle backdrop")
+            d("/stickyhots |cFFFFFFtest12|r — show mock 12-player group")
         end
     end
 
     -- Initial scan
     SH.RefreshCount()
 
-    SH.initialized = true
+end
+
+-- ============================================================================
+-- Debug: Mock 12-player group for layout testing
+-- ============================================================================
+
+local MOCK_PLAYERS = {
+    { account = "@TankMain",      character = "Aldmeri Tank" },
+    { account = "@OffTank",       character = "Daggerfall Guard" },
+    { account = "@HealBot",       character = "Ebonheart Healer" },
+    { account = "@RestoStaff",    character = "Breton Restorer" },
+    { account = "@StamBlade",     character = "Khajiit Nightblade" },
+    { account = "@MagSorc",       character = "Dunmer Sorcerer" },
+    { account = "@BowBoy",        character = "Bosmer Warden" },
+    { account = "@CritTempBoi",   character = "Argonian Templar" },
+    { account = "@NecroMancer",   character = "Imperial Necro" },
+    { account = "@IceWarden",     character = "Nord Frostmage" },
+    { account = "@ArcanistPrime", character = "High Elf Arcanist" },
+    { account = "@Kickimanjaro",  character = "Redguard Stamplar" },
+}
+
+function SH.GenerateMockData()
+    local data = {}
+    local counts = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 12 }
+    for i, mock in ipairs(MOCK_PLAYERS) do
+        local name = SH.useCharacterName and mock.character or mock.account
+        data[name] = counts[i] or math.random(0, 12)
+    end
+    return data
+end
+
+function SH.ShowMockGroup()
+    -- Force group mode on and inject mock data
+    SH.groupMode = true
+    SH.mockData = SH.GenerateMockData()
+    SH.ResizeForMode()
+    SH.UpdateGroupDisplay()
+    SH.controls.window:SetHidden(false)
+    d("|c00FF00[StickyHoTs]|r Mock 12-player group shown. Type /stickyhots to hide.")
+
+    -- Clear mock data after 30 seconds so real data resumes
+    zo_callLater(function()
+        if SH.mockData then
+            SH.mockData = nil
+            SH.RefreshCount()
+            d("|c00FF00[StickyHoTs]|r Mock data cleared, showing real data.")
+        end
+    end, 30000)
 end
 
 -- Register for addon loaded
