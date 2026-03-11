@@ -19,12 +19,10 @@ SH.MAX_HOTS = 8
 SH.UPDATE_INTERVAL_MS = 1000
 
 -- State
-SH.hotCount = 0
 SH.inPvPZone = false
 SH.groupMode = false
 SH.controls = {}
 SH.savedVars = nil
-SH.initialized = false
 SH.useCharacterName = false
 SH.showBackground = true
 SH.mockData = nil -- set by /stickyhots test12
@@ -33,7 +31,7 @@ SH.mockData = nil -- set by /stickyhots test12
 SH.PLAYER_MODE_WIDTH = 80
 SH.PLAYER_MODE_HEIGHT = 32
 SH.GROUP_COUNT_WIDTH = 30 -- space reserved for right-aligned count numbers
-SH.GROUP_PADDING = 20    -- horizontal padding (left + right margins)
+SH.GROUP_PADDING = 20    -- total extra width beyond name text (count column + margins)
 SH.GROUP_INSET = 10      -- left/right inset for content labels
 SH.GROUP_HEADER_HEIGHT = 24 -- header label height
 SH.GROUP_DIVIDER_HEIGHT = 8 -- divider texture height + spacing
@@ -49,7 +47,7 @@ local wm = GetWindowManager()
     Count active Heal over Time effects on a specific unit.
     
     Filters for buffs (not debuffs) with abilityType == ABILITY_TYPE_HEAL
-    that have a duration (timeEnding > timeStarted and timeEnding > 0).
+    that have remaining duration (timeEnding > 0 and timeEnding > now).
     
     @param unitTag  string  Unit tag to scan (e.g. "player", "group1")
     @return number  Count of active HoT effects
@@ -74,11 +72,6 @@ function SH.CountHoTsOnUnit(unitTag)
     end
 
     return count
-end
-
--- Backward-compatible wrapper: count HoTs on the player
-function SH.CountHoTs()
-    return SH.CountHoTsOnUnit("player")
 end
 
 --[[
@@ -129,8 +122,6 @@ end
     @param count  number  Current number of active HoTs
 ]]--
 function SH.UpdateDisplay(count)
-    SH.hotCount = count
-
     local label = SH.controls.label
     if not label then return end
 
@@ -271,8 +262,7 @@ function SH.RefreshCount()
     if SH.groupMode then
         SH.UpdateGroupDisplay()
     else
-        local count = SH.CountHoTs()
-        SH.UpdateDisplay(count)
+        SH.UpdateDisplay(SH.CountHoTsOnUnit("player"))
     end
 end
 
@@ -618,7 +608,6 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Initial scan
     SH.RefreshCount()
 
-    SH.initialized = true
 end
 
 -- ============================================================================
