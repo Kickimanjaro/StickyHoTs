@@ -450,6 +450,10 @@ function SH.OnAddOnLoaded(eventCode, addonName)
         elseif args == "name" then
             SH.useCharacterName = not SH.useCharacterName
             SH.savedVars.useCharacterName = SH.useCharacterName
+            -- Regenerate mock data if active so it picks up the name change
+            if SH.mockData then
+                SH.mockData = SH.GenerateMockData()
+            end
             SH.RefreshCount()
             if SH.useCharacterName then
                 d("|c00FF00[StickyHoTs]|r Showing character names")
@@ -479,18 +483,26 @@ end
 -- Debug: Mock 12-player group for layout testing
 -- ============================================================================
 
-local MOCK_NAMES = {
-    "@TankMain",     "@OffTank",       "@HealBot",
-    "@RestoStaff",   "@StamBlade",     "@MagSorc",
-    "@BowBoy",       "@CritTempBoi",   "@NecroMancer",
-    "@IceWarden",    "@ArcanistPrime", "@Kickimanjaro",
+local MOCK_PLAYERS = {
+    { account = "@TankMain",      character = "Aldmeri Tank" },
+    { account = "@OffTank",       character = "Daggerfall Guard" },
+    { account = "@HealBot",       character = "Ebonheart Healer" },
+    { account = "@RestoStaff",    character = "Breton Restorer" },
+    { account = "@StamBlade",     character = "Khajiit Nightblade" },
+    { account = "@MagSorc",       character = "Dunmer Sorcerer" },
+    { account = "@BowBoy",        character = "Bosmer Warden" },
+    { account = "@CritTempBoi",   character = "Argonian Templar" },
+    { account = "@NecroMancer",   character = "Imperial Necro" },
+    { account = "@IceWarden",     character = "Nord Frostmage" },
+    { account = "@ArcanistPrime", character = "High Elf Arcanist" },
+    { account = "@Kickimanjaro",  character = "Redguard Stamplar" },
 }
 
 function SH.GenerateMockData()
     local data = {}
-    -- Assign HoT counts that cover all color thresholds
     local counts = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 12 }
-    for i, name in ipairs(MOCK_NAMES) do
+    for i, mock in ipairs(MOCK_PLAYERS) do
+        local name = SH.useCharacterName and mock.character or mock.account
         data[name] = counts[i] or math.random(0, 12)
     end
     return data
