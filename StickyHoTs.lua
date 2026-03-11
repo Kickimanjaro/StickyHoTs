@@ -32,10 +32,8 @@ SH.mockData = nil -- set by /stickyhots test12
 -- Group mode UI dimensions
 SH.PLAYER_MODE_WIDTH = 80
 SH.PLAYER_MODE_HEIGHT = 32
-SH.GROUP_MODE_WIDTH = 200
-SH.GROUP_ROW_HEIGHT = 24
-SH.GROUP_HEADER_HEIGHT = 30
-SH.GROUP_MAX_MEMBERS = 12
+SH.GROUP_COUNT_WIDTH = 30 -- space reserved for right-aligned count numbers
+SH.GROUP_PADDING = 16    -- horizontal padding (left + right margins)
 
 -- Window manager reference
 local wm = GetWindowManager()
@@ -192,10 +190,11 @@ function SH.UpdateGroupDisplay()
     countLabel:SetText(countText)
     countLabel:SetColor(1, 1, 1, 1)
 
-    -- Resize window to fit content
-    local rowCount = #sorted
-    local height = SH.GROUP_HEADER_HEIGHT + (rowCount * SH.GROUP_ROW_HEIGHT)
-    SH.controls.window:SetDimensions(SH.GROUP_MODE_WIDTH, height)
+    -- Size window to fit actual text content
+    local nameWidth, nameHeight = label:GetTextDimensions()
+    local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
+    local height = nameHeight + 4 -- small bottom padding
+    SH.controls.window:SetDimensions(width, height)
 end
 
 --[[
@@ -204,7 +203,8 @@ end
 function SH.ResizeForMode()
     if not SH.controls.window then return end
     if SH.groupMode then
-        SH.controls.window:SetDimensions(SH.GROUP_MODE_WIDTH, SH.GROUP_HEADER_HEIGHT)
+        -- Will be sized dynamically by UpdateGroupDisplay
+        SH.controls.window:SetDimensions(150, 30)
         SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
         SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_TOP)
         SH.controls.countLabel:SetHidden(false)
