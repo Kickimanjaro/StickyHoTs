@@ -179,7 +179,7 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66" -- green: safe
         end
-        text = text .. string.format("%s%2d  %s\n", color, entry.count, entry.name)
+        text = text .. string.format("%s%02d  %s\n", color, entry.count, entry.name)
     end
     text = text .. "|r"
 
