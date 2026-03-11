@@ -172,7 +172,7 @@ function SH.UpdateGroupDisplay()
     local nameText = ""
     local countText = ""
 
-    for _, entry in ipairs(sorted) do
+    for i, entry in ipairs(sorted) do
         local color
         if entry.count >= 8 then
             color = "|cFF3333"
@@ -183,8 +183,12 @@ function SH.UpdateGroupDisplay()
         else
             color = "|c66FF66"
         end
-        nameText = nameText .. color .. entry.name .. "\n"
-        countText = countText .. color .. entry.count .. "\n"
+        if i > 1 then
+            nameText = nameText .. "\n"
+            countText = countText .. "\n"
+        end
+        nameText = nameText .. color .. entry.name
+        countText = countText .. color .. entry.count
     end
     nameText = nameText .. "|r"
     countText = countText .. "|r"
@@ -541,14 +545,23 @@ function SH.OnAddOnLoaded(eventCode, addonName)
             end
         elseif args == "test12" then
             SH.ShowMockGroup()
-        elseif SH.controls.window then
-            local isHidden = SH.controls.window:IsHidden()
-            SH.controls.window:SetHidden(not isHidden)
-            if isHidden then
-                d("|c00FF00[StickyHoTs]|r Shown — drag to reposition")
-            else
-                d("|c00FF00[StickyHoTs]|r Hidden")
+        elseif args == "show" or args == "hide" or args == "toggle" then
+            if SH.controls.window then
+                local isHidden = SH.controls.window:IsHidden()
+                SH.controls.window:SetHidden(not isHidden)
+                if isHidden then
+                    d("|c00FF00[StickyHoTs]|r Shown \226\128\148 drag to reposition")
+                else
+                    d("|c00FF00[StickyHoTs]|r Hidden")
+                end
             end
+        else
+            d("|c00FF00[StickyHoTs]|r Usage:")
+            d("  /stickyhots |cFFFFFFtoggle|r — show/hide the window")
+            d("  /stickyhots |cFFFFFFgroup|r — toggle group mode")
+            d("  /stickyhots |cFFFFFFname|r — toggle account/character names")
+            d("  /stickyhots |cFFFFFFbackground|r — toggle backdrop")
+            d("  /stickyhots |cFFFFFFtest12|r — show mock 12-player group")
         end
     end
 
