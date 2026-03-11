@@ -512,15 +512,17 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Slash commands
     SLASH_COMMANDS["/stickyhots"] = function(args)
         if args == "group" then
-            SH.groupMode = not SH.groupMode
-            SH.savedVars.groupMode = SH.groupMode
+            SH.groupMode = true
+            SH.savedVars.groupMode = true
             SH.ResizeForMode()
             SH.RefreshCount()
-            if SH.groupMode then
-                d("|c00FF00[StickyHoTs]|r Group mode ON")
-            else
-                d("|c00FF00[StickyHoTs]|r Group mode OFF")
-            end
+            d("|c00FF00[StickyHoTs]|r Group mode")
+        elseif args == "self" then
+            SH.groupMode = false
+            SH.savedVars.groupMode = false
+            SH.ResizeForMode()
+            SH.RefreshCount()
+            d("|c00FF00[StickyHoTs]|r Self mode")
         elseif args == "name" then
             SH.useCharacterName = not SH.useCharacterName
             SH.savedVars.useCharacterName = SH.useCharacterName
@@ -558,7 +560,8 @@ function SH.OnAddOnLoaded(eventCode, addonName)
         else
             d("|c00FF00[StickyHoTs]|r Usage:")
             d("  /stickyhots |cFFFFFFtoggle|r — show/hide the window")
-            d("  /stickyhots |cFFFFFFgroup|r — toggle group mode")
+            d("  /stickyhots |cFFFFFFself|r — self-only HoT counter")
+            d("  /stickyhots |cFFFFFFgroup|r — group HoT display")
             d("  /stickyhots |cFFFFFFname|r — toggle account/character names")
             d("  /stickyhots |cFFFFFFbackground|r — toggle backdrop")
             d("  /stickyhots |cFFFFFFtest12|r — show mock 12-player group")
