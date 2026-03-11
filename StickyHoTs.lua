@@ -193,8 +193,10 @@ function SH.UpdateGroupDisplay()
     nameText = nameText .. "|r"
     countText = countText .. "|r"
 
-    -- Expand window before setting text so labels have room for all lines
-    SH.controls.window:SetHeight(800)
+    -- Expand window before setting text so labels have room for all lines.
+    -- Must expand BOTH width and height — labels are two-point anchored, so
+    -- GetTextDimensions() wraps text within the label's current width.
+    SH.controls.window:SetDimensions(800, 800)
 
     label:SetText(nameText)
     label:SetColor(1, 1, 1, 1)
@@ -205,7 +207,7 @@ function SH.UpdateGroupDisplay()
     local nameWidth, nameHeight = label:GetTextDimensions()
     local headerOffset = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
     local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
-    local height = headerOffset + nameHeight -- header + divider + content
+    local height = headerOffset + nameHeight + SH.GROUP_INSET -- bottom padding matches sides
     SH.controls.window:SetDimensions(width, height)
 
     -- Stretch divider to match content width
