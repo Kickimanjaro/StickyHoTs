@@ -22,9 +22,18 @@ SH.BATTLE_SPIRIT_ID = 999014
 -- State
 SH.hotCount = 0
 SH.inPvPZone = false
+SH.groupMode = false
 SH.controls = {}
 SH.savedVars = nil
 SH.initialized = false
+
+-- Group mode UI dimensions
+SH.PLAYER_MODE_WIDTH = 80
+SH.PLAYER_MODE_HEIGHT = 32
+SH.GROUP_MODE_WIDTH = 200
+SH.GROUP_ROW_HEIGHT = 18
+SH.GROUP_HEADER_HEIGHT = 28
+SH.GROUP_MAX_MEMBERS = 12
 
 -- Window manager reference
 local wm = GetWindowManager()
@@ -34,22 +43,23 @@ local wm = GetWindowManager()
 -- ============================================================================
 
 --[[
-    Count active Heal over Time effects on the player.
+    Count active Heal over Time effects on a specific unit.
     
     Filters for buffs (not debuffs) with abilityType == ABILITY_TYPE_HEAL
     that have a duration (timeEnding > timeStarted and timeEnding > 0).
     
+    @param unitTag  string  Unit tag to scan (e.g. "player", "group1")
     @return number  Count of active HoT effects
 ]]--
-function SH.CountHoTs()
+function SH.CountHoTsOnUnit(unitTag)
     local count = 0
-    local numBuffs = GetNumBuffs("player")
+    local numBuffs = GetNumBuffs(unitTag)
     local now = GetGameTimeSeconds()
 
     for i = 1, numBuffs do
         local buffName, timeStarted, timeEnding, buffSlot, stackCount, iconFilename,
               deprecatedBuffType, effectType, abilityType, statusEffectType, abilityId,
-              canClickOff, castByPlayer = GetUnitBuffInfo("player", i)
+              canClickOff, castByPlayer = GetUnitBuffInfo(unitTag, i)
 
         -- A HoT is a buff (not debuff) with ABILITY_TYPE_HEAL and a remaining duration
         if effectType == BUFF_EFFECT_TYPE_BUFF
@@ -61,6 +71,38 @@ function SH.CountHoTs()
     end
 
     return count
+end
+
+-- Backward-compatible wrapper: count HoTs on the player
+function SH.CountHoTs()
+    return SH.CountHoTsOnUnit("player")
+end
+
+--[[
+    Scan group members and count HoTs on each player.
+    Returns a table:  {[displayName] = count}
+    Falls back to scanning just the player when solo.
+]]--
+function SH.CountGroupStickyHoTs()
+    local results = {}
+    local groupSize = GetGroupSize()
+
+    if groupSize == 0 then
+        local name = GetUnitDisplayName("player")
+        results[name] = SH.CountHoTsOnUnit("player")
+        return results
+    end
+
+    for i = 1, groupSize do
+        local unitTag = GetGroupUnitTagByIndex(i)
+        if unitTag and DoesUnitExist(unitTag) then
+            local name = GetUnitDisplayName(unitTag)
+            local count = SH.CountHoTsOnUnit(unitTag)
+            results[name] = count
+        end
+    end
+
+    return results
 end
 
 -- ============================================================================
@@ -98,12 +140,77 @@ function SH.UpdateDisplay(count)
 end
 
 --[[
+    Update the group HoT display with a sorted, color-coded list.
+    Shows @name and HoT count for each group member.
+]]--
+function SH.UpdateGroupDisplay()
+    local label = SH.controls.label
+    if not label then return end
+
+    local data = SH.CountGroupStickyHoTs()
+
+    -- Convert to sortable table
+    local sorted = {}
+    for name, count in pairs(data) do
+        table.insert(sorted, {name = name, count = count})
+    end
+
+    -- Sort highest HoTs first
+    table.sort(sorted, function(a, b) return a.count > b.count end)
+
+    local text = "|cFFFFFFStickyHoTs|r\n"
+
+    for _, entry in ipairs(sorted) do
+        local color
+        if entry.count >= 8 then
+            color = "|cFF3333" -- red: debuff active
+        elseif entry.count >= 6 then
+            color = "|cFFAA33" -- orange: danger
+        elseif entry.count >= 4 then
+            color = "|cFFFF66" -- yellow: approaching cap
+        else
+            color = "|c66FF66" -- green: safe
+        end
+        text = text .. string.format("%s%s  %d|r\n", color, entry.name, entry.count)
+    end
+
+    label:SetText(text)
+    label:SetColor(1, 1, 1, 1) -- neutral white; colors are inline
+
+    -- Resize window to fit content
+    local rowCount = #sorted
+    local height = SH.GROUP_HEADER_HEIGHT + (rowCount * SH.GROUP_ROW_HEIGHT)
+    SH.controls.window:SetDimensions(SH.GROUP_MODE_WIDTH, height)
+end
+
+--[[
+    Resize the window to match the current display mode.
+]]--
+function SH.ResizeForMode()
+    if not SH.controls.window then return end
+    if SH.groupMode then
+        -- Will be sized dynamically by UpdateGroupDisplay
+        SH.controls.window:SetDimensions(SH.GROUP_MODE_WIDTH, SH.GROUP_HEADER_HEIGHT)
+        SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
+        SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_TOP)
+    else
+        SH.controls.window:SetDimensions(SH.PLAYER_MODE_WIDTH, SH.PLAYER_MODE_HEIGHT)
+        SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
+        SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
+    end
+end
+
+--[[
     Recount HoTs and refresh the display. Called by both event handlers
     and the periodic fallback scan.
 ]]--
 function SH.RefreshCount()
-    local count = SH.CountHoTs()
-    SH.UpdateDisplay(count)
+    if SH.groupMode then
+        SH.UpdateGroupDisplay()
+    else
+        local count = SH.CountHoTs()
+        SH.UpdateDisplay(count)
+    end
 end
 
 -- ============================================================================
@@ -290,11 +397,14 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Initialize SavedVariables (account-wide)
     local defaults = {
         position = nil, -- { x = number, y = number }
+        groupMode = false,
     }
     SH.savedVars = ZO_SavedVars:NewAccountWide("StickyHoTsVars", 1, nil, defaults)
+    SH.groupMode = SH.savedVars.groupMode or false
 
     -- Create UI
     SH.CreateUI()
+    SH.ResizeForMode()
 
     -- Register for buff change events on the player
     EVENT_MANAGER:RegisterForEvent(SH.name, EVENT_EFFECT_CHANGED, SH.OnEffectChanged)
@@ -309,9 +419,23 @@ function SH.OnAddOnLoaded(eventCode, addonName)
     -- Scene callbacks for HUD visibility
     SH.RegisterSceneCallbacks()
 
-    -- Slash command to toggle visibility
-    SLASH_COMMANDS["/stickyhots"] = function()
-        if SH.controls.window then
+    -- Refresh immediately when group composition changes
+    EVENT_MANAGER:RegisterForEvent(SH.name, EVENT_GROUP_MEMBER_JOINED, function() SH.RefreshCount() end)
+    EVENT_MANAGER:RegisterForEvent(SH.name, EVENT_GROUP_MEMBER_LEFT, function() SH.RefreshCount() end)
+
+    -- Slash commands
+    SLASH_COMMANDS["/stickyhots"] = function(args)
+        if args == "group" then
+            SH.groupMode = not SH.groupMode
+            SH.savedVars.groupMode = SH.groupMode
+            SH.ResizeForMode()
+            SH.RefreshCount()
+            if SH.groupMode then
+                d("|c00FF00[StickyHoTs]|r Group mode ON")
+            else
+                d("|c00FF00[StickyHoTs]|r Group mode OFF")
+            end
+        elseif SH.controls.window then
             local isHidden = SH.controls.window:IsHidden()
             SH.controls.window:SetHidden(not isHidden)
             if isHidden then
