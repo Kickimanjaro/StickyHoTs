@@ -34,6 +34,8 @@ SH.PLAYER_MODE_WIDTH = 80
 SH.PLAYER_MODE_HEIGHT = 32
 SH.GROUP_COUNT_WIDTH = 30 -- space reserved for right-aligned count numbers
 SH.GROUP_PADDING = 16    -- horizontal padding (left + right margins)
+SH.GROUP_HEADER_HEIGHT = 24 -- header label height
+SH.GROUP_DIVIDER_HEIGHT = 8 -- divider texture height + spacing
 
 -- Window manager reference
 local wm = GetWindowManager()
@@ -165,8 +167,8 @@ function SH.UpdateGroupDisplay()
     -- Sort highest HoTs first
     table.sort(sorted, function(a, b) return a.count > b.count end)
 
-    local nameText = "|cFFFFFFStickyHoTs|r\n"
-    local countText = "\n" -- blank line to match header
+    local nameText = ""
+    local countText = ""
 
     for _, entry in ipairs(sorted) do
         local color
@@ -192,9 +194,13 @@ function SH.UpdateGroupDisplay()
 
     -- Size window to fit actual text content
     local nameWidth, nameHeight = label:GetTextDimensions()
+    local headerOffset = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
     local width = nameWidth + SH.GROUP_COUNT_WIDTH + SH.GROUP_PADDING
-    local height = nameHeight + 4 -- small bottom padding
+    local height = headerOffset + nameHeight + 4 -- header + divider + content + padding
     SH.controls.window:SetDimensions(width, height)
+
+    -- Stretch divider to match content width
+    SH.controls.divider:SetWidth(width - SH.GROUP_PADDING)
 end
 
 --[[
@@ -205,15 +211,28 @@ function SH.ResizeForMode()
     if SH.groupMode then
         -- Will be sized dynamically by UpdateGroupDisplay
         SH.controls.window:SetDimensions(150, 30)
+        local contentTop = SH.GROUP_HEADER_HEIGHT + SH.GROUP_DIVIDER_HEIGHT
+        SH.controls.label:ClearAnchors()
+        SH.controls.label:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, 0, contentTop)
+        SH.controls.label:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, 0, 0)
         SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
         SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_TOP)
+        SH.controls.countLabel:ClearAnchors()
+        SH.controls.countLabel:SetAnchor(TOPLEFT, SH.controls.window, TOPLEFT, 0, contentTop)
+        SH.controls.countLabel:SetAnchor(BOTTOMRIGHT, SH.controls.window, BOTTOMRIGHT, 0, 0)
         SH.controls.countLabel:SetHidden(false)
+        SH.controls.headerLabel:SetHidden(false)
+        SH.controls.divider:SetHidden(false)
     else
         SH.controls.window:SetDimensions(SH.PLAYER_MODE_WIDTH, SH.PLAYER_MODE_HEIGHT)
+        SH.controls.label:ClearAnchors()
+        SH.controls.label:SetAnchorFill(SH.controls.window)
         SH.controls.label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
         SH.controls.label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
         SH.controls.countLabel:SetHidden(true)
         SH.controls.countLabel:SetText("")
+        SH.controls.headerLabel:SetHidden(true)
+        SH.controls.divider:SetHidden(true)
     end
 end
 
@@ -304,6 +323,28 @@ function SH.CreateUI()
     bg:SetCenterColor(0, 0, 0, 0.6)
     bg:SetEdgeColor(0, 0, 0, 0.8)
     SH.controls.backdrop = bg
+
+    -- Header label (group mode: centered "StickyHoTs" title)
+    local headerLabel = wm:CreateControl("$(parent)Header", tlw, CT_LABEL)
+    headerLabel:SetFont("ZoFontGameLarge")
+    headerLabel:SetColor(1, 1, 1, 1)
+    headerLabel:SetText("StickyHoTs")
+    headerLabel:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
+    headerLabel:SetAnchor(TOPLEFT, tlw, TOPLEFT, 0, 2)
+    headerLabel:SetAnchor(TOPRIGHT, tlw, TOPRIGHT, 0, 2)
+    headerLabel:SetDrawLayer(1)
+    headerLabel:SetHidden(true)
+    SH.controls.headerLabel = headerLabel
+
+    -- Horizontal divider under header (group mode only)
+    local divider = wm:CreateControl("$(parent)Divider", tlw, CT_TEXTURE)
+    divider:SetTexture("EsoUI/Art/Miscellaneous/horizontalDivider.dds")
+    divider:SetAnchor(TOP, headerLabel, BOTTOM, 0, 2)
+    divider:SetDimensions(150, 4)
+    divider:SetColor(0.5, 0.5, 0.5, 0.6)
+    divider:SetDrawLayer(1)
+    divider:SetHidden(true)
+    SH.controls.divider = divider
 
     -- Counter label (player mode: centered count; group mode: left-aligned names)
     local label = wm:CreateControl("$(parent)Label", tlw, CT_LABEL)
