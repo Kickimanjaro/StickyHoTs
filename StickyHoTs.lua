@@ -11,7 +11,7 @@ local SH = StickyHoTs
 
 -- Addon metadata
 SH.name = "StickyHoTs"
-SH.version = "2.0.0"
+SH.version = "2.0.1"
 SH.author = "Kickimanjaro"
 
 -- Constants
