@@ -5,7 +5,7 @@
 -- Namespace
 -- ============================================================================
 
-StickyHoTs = {}
+local StickyHoTs = {}
 
 local SH = StickyHoTs
 
